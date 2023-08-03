@@ -1,4 +1,4 @@
-import { Meeting } from "./app";
+import { Meeting, Secretary } from "./app";
 import { formatDate } from "./utils";
 import * as fs from "fs";
 
@@ -130,11 +130,18 @@ export function createStyleHeader() {
   `;
 }
 
-export function renderMinutes(part: string, meeting: Meeting) {
+export function renderMinutes(part: string, meeting: Meeting, secretary: Secretary) {
   return `
     ${renderHeader(meeting)}
     <div>
       ${part}
     </div>
+    <div class="signature">
+      <h3>
+      ${secretary.person.firstName}
+      ${secretary.person.lastName.toUpperCase()},
+      </h3>
+      <p>${secretary.title}.</p>
+  </div>
   `;
 }

@@ -155,11 +155,6 @@ app.get("/:id", async function (req, res) {
     }
 
     const secretary = await retrieveSecretary(req.params.id);
-    if (!secretary) {
-      res.status(500);
-      res.send("Could not find secretary related to meeting")
-    }
-
     const sanitizedPart = sanitizeHtml(minutesPart, sanitizeHtml.defaults);
     const fileMeta = await generatePdf(sanitizedPart, meeting, secretary);
     res.send(fileMeta);

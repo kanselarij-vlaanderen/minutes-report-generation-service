@@ -55,9 +55,7 @@
 
 @font-face {
   font-family: "flanders-sans";
-  src: url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-sans-regular.woff2)
-      format("woff2"),
-    url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-sans-regular.woff)
+  src: url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-sans-regular.woff)
       format("woff");
   font-weight: 400;
   font-style: normal;
@@ -100,4 +98,9 @@ body {
 
 .logo {
   text-align: center;
+}
+
+.signature {
+  margin-top: 6rem;
+  float: right;
 }

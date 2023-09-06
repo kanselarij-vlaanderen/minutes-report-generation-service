@@ -123,18 +123,18 @@ async function retrieveSecretary(minutesId: string): Promise<Secretary> {
     ?person persoon:gebruikteVoornaam ?firstName .
   }
   `;
-  const {
-    results: {
-      bindings: [{ lastName, firstName, title }],
-    },
-  } = await query(dataQuery);
-  return {
-    person: {
-      firstName: firstName.value,
-      lastName: lastName.value,
-    },
-    title: title.value,
-  };
+  const queryResult = await query(dataQuery);
+  if (queryResult.results && queryResult.results.bindings && queryResult.results.bindings.length) {
+    const result = queryResult.results.bindings[0];
+    return {
+      person: {
+        firstName: result.firstName.value,
+        lastName: result.lastName.value,
+      },
+      title: result.title.value,
+    };
+  }
+  return;
 }
 
 
@@ -153,7 +153,7 @@ app.get("/:id", async function (req, res) {
       res.send("Could not find meeting related to minutes.");
       return;
     }
-    
+
     const secretary = await retrieveSecretary(req.params.id);
     if (!secretary) {
       res.status(500);

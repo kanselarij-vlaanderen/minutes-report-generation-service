@@ -1,9 +1,10 @@
-import * as htmlPdf from "html-pdf-chrome";
 import { renderMinutes, createStyleHeader } from "./render-minutes";
 import { app, query, sparqlEscapeString, uuid as generateUuid } from "mu";
 import { createFile, FileMeta, FileMetaNoUri } from "./file";
 import { STORAGE_PATH, STORAGE_URI } from "./config";
 import sanitizeHtml from "sanitize-html";
+import * as fs from "fs";
+import fetch from "node-fetch";
 
 export interface Meeting {
   plannedStart: Date;
@@ -18,32 +19,50 @@ export interface Person {
 export type Secretary = {
   person: Person;
   title: string;
-}
+};
 
-async function generatePdf(part: string, meeting: Meeting, secretary: Secretary): Promise<FileMeta> {
-  const options: htmlPdf.CreateOptions = {
-    host: "chrome-browser",
-    port: 9222,
-  };
-
+async function generatePdf(
+  part: string,
+  meeting: Meeting,
+  secretary: Secretary | undefined
+): Promise<FileMeta> {
   const uuid = generateUuid();
   const fileName = `${uuid}.pdf`;
   const filePath = `${STORAGE_PATH}/${fileName}`;
 
   const html = renderMinutes(part, meeting, secretary);
-  const pdf = await htmlPdf.create(`${createStyleHeader()}${html}`, options);
-  const fileMeta: FileMetaNoUri = {
-    name: fileName,
-    extension: "pdf",
-    size: pdf.toBuffer().buffer.byteLength,
-    created: new Date(),
-    format: "application/pdf",
-    id: uuid,
-  };
+  const htmlString = `${createStyleHeader()}${html}`;
 
-  await pdf.toFile(filePath);
+  const response = await fetch("http://html-to-pdf/generate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/html",
+    },
+    body: htmlString,
+  });
 
-  return await createFile(fileMeta, `${STORAGE_URI}${fileMeta.name}`);
+  if (response.ok) {
+    const buffer = await response.buffer();
+    const fileMeta: FileMetaNoUri = {
+      name: fileName,
+      extension: "pdf",
+      size: buffer.byteLength,
+      created: new Date(),
+      format: "application/pdf",
+      id: uuid,
+    };
+    fs.writeFileSync(filePath, buffer);
+    return await createFile(fileMeta, `${STORAGE_URI}${fileMeta.name}`);
+  } else {
+    if (response.headers["Content-Type"] === "application/vnd.api+json") {
+      const errorResponse = await response.json();
+      console.log(
+        "Rendering PDF returned the following error response: ",
+        errorResponse
+      );
+    }
+    throw new Error("Something went wrong while generating the pdf");
+  }
 }
 
 async function retrieveMinutesPart(minutesId: string): Promise<string | null> {
@@ -102,7 +121,9 @@ async function retrieveMeeting(minutesId: string): Promise<Meeting> {
   };
 }
 
-async function retrieveSecretary(minutesId: string): Promise<Secretary> {
+async function retrieveSecretary(
+  minutesId: string
+): Promise<Secretary | undefined> {
   const dataQuery = `
   PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
   PREFIX besluitvorming: <https://data.vlaanderen.be/ns/besluitvorming#>
@@ -124,7 +145,11 @@ async function retrieveSecretary(minutesId: string): Promise<Secretary> {
   }
   `;
   const queryResult = await query(dataQuery);
-  if (queryResult.results && queryResult.results.bindings && queryResult.results.bindings.length) {
+  if (
+    queryResult.results &&
+    queryResult.results.bindings &&
+    queryResult.results.bindings.length
+  ) {
     const result = queryResult.results.bindings[0];
     return {
       person: {
@@ -134,9 +159,7 @@ async function retrieveSecretary(minutesId: string): Promise<Secretary> {
       title: result.title.value,
     };
   }
-  return;
 }
-
 
 app.get("/:id", async function (req, res) {
   try {

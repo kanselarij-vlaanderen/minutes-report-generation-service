@@ -1,92 +1,26 @@
-@font-face {
-  font-family: "flanders-serif";
-  src: url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-serif-light.woff2)
-      format("woff2"),
-    url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-serif-light.woff)
-      format("woff");
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
+@page {
+  size: A4;
+
+  margin-top: 25mm;
+  margin-bottom: 15mm;
+  margin-left: 23mm;
+  margin-right: 13mm;
+
+  @bottom-right {
+    font-family: Arial;
+    content: counter(page) "/" counter(pages);
+  }
 }
 
-@font-face {
-  font-family: "flanders-serif";
-  src: url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-serif-regular.woff2)
-      format("woff2"),
-    url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-serif-regular.woff)
-      format("woff");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "flanders-serif";
-  src: url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-serif-medium.woff2)
-      format("woff2"),
-    url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-serif-medium.woff)
-      format("woff");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "flanders-serif";
-  src: url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-serif-bold.woff2)
-      format("woff2"),
-    url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-serif-bold.woff)
-      format("woff");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "flanders-sans";
-  src: url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-sans-light.woff2)
-      format("woff2"),
-    url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-sans-light.woff)
-      format("woff");
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "flanders-sans";
-  src: url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-sans-regular.woff)
-      format("woff");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "flanders-sans";
-  src: url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-sans-medium.woff2)
-      format("woff2"),
-    url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-sans-medium.woff)
-      format("woff");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "flanders-sans";
-  src: url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-sans-bold.woff2)
-      format("woff2"),
-    url(https://d1l6j3bn1os9t0.cloudfront.net/3.latest/fonts/flanders/flanders-sans-bold.woff)
-      format("woff");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
+@page :first {
+  margin-top: 10mm;
 }
 
 body {
-  padding: 4em;
-  font-family: "flanders-sans";
+  font-family: "Flanders Art Sans";
+  font-size: 12pt;
+  line-height: 1.5;
+  font-variant-ligatures: none;
 }
 
 .header-text {
@@ -94,6 +28,8 @@ body {
   text-transform: uppercase;
   text-decoration: underline;
   font-weight: bold;
+  margin-top: 15mm;
+  margin-bottom: 15mm;
 }
 
 .logo {
@@ -103,4 +39,13 @@ body {
 .signature {
   margin-top: 6rem;
   float: right;
+}
+
+table {
+  width: 100%;
+}
+
+th, td {
+  text-align: left;
+  vertical-align: top;
 }

@@ -1,6 +1,14 @@
 import * as htmlPdf from "html-pdf-chrome";
 import { renderMinutes, createStyleHeader } from "./render-minutes";
-import { app, query, sparqlEscapeString, uuid as generateUuid } from "mu";
+import { 
+  app,
+  query,
+  update, 
+  sparqlEscapeString, 
+  sparqlEscapeUri, 
+  sparqlEscapeDate, 
+  uuid as generateUuid 
+} from "mu";
 import { createFile, FileMeta, FileMetaNoUri } from "./file";
 import { STORAGE_PATH, STORAGE_URI } from "./config";
 import sanitizeHtml from "sanitize-html";
@@ -137,6 +145,29 @@ async function retrieveSecretary(minutesId: string): Promise<Secretary> {
   return;
 }
 
+async function replaceMinutesFile(minutesId: string, fileUri: string) {
+  const queryString = `
+  PREFIX prov: <http://www.w3.org/ns/prov#>
+  PREFIX dct: <http://purl.org/dc/terms/>
+  PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+  PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+  DELETE {
+    ?minutes prov:value ?document .
+  } INSERT {
+    ?minutes prov:value ${sparqlEscapeUri(fileUri)} .
+    ?minutes dct:modified ${sparqlEscapeDate(new Date())}
+  } WHERE {
+    ?minutes mu:uuid ${sparqlEscapeString(minutesId)} .
+    ?minutes a ext:Notulen .
+    OPTIONAL {
+      ?minutes prov:value ?document .
+    }
+  }
+  `;
+  await update(queryString);
+}
+
 
 app.get("/:id", async function (req, res) {
   try {
@@ -157,7 +188,12 @@ app.get("/:id", async function (req, res) {
     const secretary = await retrieveSecretary(req.params.id);
     const sanitizedPart = sanitizeHtml(minutesPart, sanitizeHtml.defaults);
     const fileMeta = await generatePdf(sanitizedPart, meeting, secretary);
-    res.send(fileMeta);
+    if (fileMeta) {
+      await replaceMinutesFile(req.params.id, fileMeta.uri);
+      res.sendStatus(200);
+      return;
+    }
+    throw new Error('Something went wrong while generating the pdf');
   } catch (e) {
     res.status(500);
     console.error(e);

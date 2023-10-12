@@ -130,21 +130,22 @@ export function createStyleHeader() {
   `;
 }
 
-export function renderMinutes(part: string, meeting: Meeting, secretary: Secretary) {
-  let minutesHtml = `
-    ${renderHeader(meeting)}
-    <div>
-      ${part}
-    </div>`;
+export function renderMinutes(
+  part: string,
+  meeting: Meeting,
+  secretary: Secretary | undefined
+) {
+  let minutesHtml = ` ${renderHeader(meeting)}
+    <div>${part}</div>`;
   if (secretary && secretary.person) {
-    minutesHtml +=   `
-    <div class="signature">
-      <h3 style="font-weight: 500;">
-        ${secretary.person.firstName}
-        ${secretary.person.lastName.toUpperCase()},
-      </h3>
-      <p>${secretary.title}.</p>
-    </div>
+    minutesHtml += `
+      <div class="signature">
+        <h3 style="font-weight: 500;">
+          ${secretary.person.firstName}
+          ${secretary.person.lastName.toUpperCase()},
+        </h3>
+        <p>${secretary.title}.</p>
+      </div>
     `;
   }
   return minutesHtml;

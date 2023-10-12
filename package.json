@@ -5,10 +5,11 @@
   "author": "Kobe Mertens",
   "type": "module",
   "dependencies": {
-    "html-pdf-chrome": "0.8.4",
+    "node-fetch": "2.7.0",
     "sanitize-html": "2.10.0"
   },
   "devDependencies": {
+    "@types/node-fetch": "^2.6.4",
     "@types/sanitize-html": "2.9.0"
   }
 }

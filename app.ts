@@ -220,15 +220,15 @@ async function replaceMinutesFile(minutesId: string, fileUri: string) {
 
   DELETE {
     ?minutes prov:value ?document .
+    ?minutes dct:modified ?modified .
   } INSERT {
     ?minutes prov:value ${sparqlEscapeUri(fileUri)} .
     ?minutes dct:modified ${sparqlEscapeDateTime(new Date())}
   } WHERE {
     ?minutes mu:uuid ${sparqlEscapeString(minutesId)} .
     ?minutes a ext:Notulen .
-    OPTIONAL {
-      ?minutes prov:value ?document .
-    }
+    OPTIONAL { ?minutes prov:value ?document .}
+    OPTIONAL { ?minutes dct:modified ?modified .}
   }
   `;
   await update(queryString);

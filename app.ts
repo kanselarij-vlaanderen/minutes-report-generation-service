@@ -1,5 +1,13 @@
 import { renderMinutes, createStyleHeader } from "./render-minutes";
-import { app, query, sparqlEscapeString, uuid as generateUuid } from "mu";
+import { 
+  app,
+  query,
+  update, 
+  sparqlEscapeString, 
+  sparqlEscapeUri, 
+  sparqlEscapeDateTime, 
+  uuid as generateUuid 
+} from "mu";
 import { createFile, FileMeta, FileMetaNoUri } from "./file";
 import { STORAGE_PATH, STORAGE_URI } from "./config";
 import sanitizeHtml from "sanitize-html";
@@ -9,6 +17,10 @@ import fetch from "node-fetch";
 export interface Meeting {
   plannedStart: Date;
   numberRepresentation: number;
+}
+
+export type File = {
+  id: string;
 }
 
 export interface Person {
@@ -63,6 +75,44 @@ async function generatePdf(
     }
     throw new Error("Something went wrong while generating the pdf");
   }
+}
+
+async function deleteFile(requestHeaders, file: File) {
+  try {
+    const response = await fetch(`http://file/files/${file.id}`, {
+      method: "delete",
+      headers: requestHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Something went wrong while removing the file: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error(`Could not delete file with id: ${file.id}. Error:`, error);
+  }
+}
+
+async function retrieveOldFile(notulenId: string): Promise<File | null> {
+  const queryString = `
+  PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+  PREFIX prov: <http://www.w3.org/ns/prov#>
+  PREFIX nfo: <http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#>
+  PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+  select ?fileId WHERE {
+    ?notulen mu:uuid ${sparqlEscapeString(notulenId)} .
+    ?notulen a ext:Notulen .
+    ?notulen prov:value ?file .
+    ?file a nfo:FileDataObject .
+    ?file mu:uuid ?fileId .
+  }
+  `;
+
+  const queryResult = await query(queryString);
+  if (queryResult.results?.bindings?.length) {
+    const result = queryResult.results.bindings[0];
+    return { id: result.fileId.value };
+  }
+  return null;
 }
 
 async function retrieveMinutesPart(minutesId: string): Promise<string | null> {
@@ -161,6 +211,30 @@ async function retrieveSecretary(
   }
 }
 
+async function replaceMinutesFile(minutesId: string, fileUri: string) {
+  const queryString = `
+  PREFIX prov: <http://www.w3.org/ns/prov#>
+  PREFIX dct: <http://purl.org/dc/terms/>
+  PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+  PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+  DELETE {
+    ?minutes prov:value ?document .
+    ?minutes dct:modified ?modified .
+  } INSERT {
+    ?minutes prov:value ${sparqlEscapeUri(fileUri)} .
+    ?minutes dct:modified ${sparqlEscapeDateTime(new Date())}
+  } WHERE {
+    ?minutes mu:uuid ${sparqlEscapeString(minutesId)} .
+    ?minutes a ext:Notulen .
+    OPTIONAL { ?minutes prov:value ?document .}
+    OPTIONAL { ?minutes dct:modified ?modified .}
+  }
+  `;
+  await update(queryString);
+}
+
+
 app.get("/:id", async function (req, res) {
   try {
     const minutesPart = await retrieveMinutesPart(req.params.id);
@@ -178,9 +252,17 @@ app.get("/:id", async function (req, res) {
     }
 
     const secretary = await retrieveSecretary(req.params.id);
+    const oldFile = await retrieveOldFile(req.params.id);
     const sanitizedPart = sanitizeHtml(minutesPart, sanitizeHtml.defaults);
     const fileMeta = await generatePdf(sanitizedPart, meeting, secretary);
-    res.send(fileMeta);
+    if (fileMeta) {
+      await replaceMinutesFile(req.params.id, fileMeta.uri);
+      if (oldFile) {
+        await deleteFile(req.headers, oldFile);
+      }
+      return res.status(200).send(fileMeta);
+    }
+    throw new Error('Something went wrong while generating the pdf');
   } catch (e) {
     res.status(500);
     console.error(e);

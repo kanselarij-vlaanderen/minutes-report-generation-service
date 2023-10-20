@@ -129,7 +129,7 @@ async function retrieveMinutesPart(minutesId: string): Promise<string | null> {
     ?s mu:uuid ${sparqlEscapeString(minutesId)} .
     ?s a ext:Notulen .
  	  ?piecePart dct:isPartOf ?s .
-    ?piecePart prov:value ?value .
+    ?piecePart prov:value ?htmlContent .
     FILTER(NOT EXISTS { [] pav:previousVersion ?piecePart }) .
   }
   `;
@@ -141,7 +141,7 @@ async function retrieveMinutesPart(minutesId: string): Promise<string | null> {
     return null;
   }
 
-  return bindings[0].value.value;
+  return bindings[0].htmlContent.value;
 }
 
 async function retrieveMeeting(minutesId: string): Promise<Meeting> {

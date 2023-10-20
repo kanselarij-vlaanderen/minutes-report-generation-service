@@ -19,6 +19,10 @@ export interface Meeting {
   numberRepresentation: number;
 }
 
+export type File = {
+  id: string;
+}
+
 export interface Person {
   firstName: string;
   lastName: string;
@@ -71,6 +75,44 @@ async function generatePdf(
     }
     throw new Error("Something went wrong while generating the pdf");
   }
+}
+
+async function deleteFile(requestHeaders, file: File) {
+  try {
+    const response = await fetch(`http://file/files/${file.id}`, {
+      method: "delete",
+      headers: requestHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Something went wrong while removing the file: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error(`Could not delete file with id: ${file.id}. Error:`, error);
+  }
+}
+
+async function retrieveOldFile(notulenId: string): Promise<File | null> {
+  const queryString = `
+  PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+  PREFIX prov: <http://www.w3.org/ns/prov#>
+  PREFIX nfo: <http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#>
+  PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+  select ?fileId WHERE {
+    ?notulen mu:uuid ${sparqlEscapeString(notulenId)} .
+    ?notulen a ext:Notulen .
+    ?notulen prov:value ?file .
+    ?file a nfo:FileDataObject .
+    ?file mu:uuid ?fileId .
+  }
+  `;
+
+  const queryResult = await query(queryString);
+  if (queryResult.results?.bindings?.length) {
+    const result = queryResult.results.bindings[0];
+    return { id: result.fileId.value };
+  }
+  return null;
 }
 
 async function retrieveMinutesPart(minutesId: string): Promise<string | null> {
@@ -210,12 +252,15 @@ app.get("/:id", async function (req, res) {
     }
 
     const secretary = await retrieveSecretary(req.params.id);
+    const oldFile = await retrieveOldFile(req.params.id);
     const sanitizedPart = sanitizeHtml(minutesPart, sanitizeHtml.defaults);
     const fileMeta = await generatePdf(sanitizedPart, meeting, secretary);
     if (fileMeta) {
       await replaceMinutesFile(req.params.id, fileMeta.uri);
-      res.sendStatus(200);
-      return;
+      if (oldFile) {
+        await deleteFile(req.headers, oldFile);
+      }
+      return res.status(200).send(fileMeta);
     }
     throw new Error('Something went wrong while generating the pdf');
   } catch (e) {

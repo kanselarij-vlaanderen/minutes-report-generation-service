@@ -5,7 +5,7 @@ import {
   update, 
   sparqlEscapeString, 
   sparqlEscapeUri, 
-  sparqlEscapeDate, 
+  sparqlEscapeDateTime, 
   uuid as generateUuid 
 } from "mu";
 import { createFile, FileMeta, FileMetaNoUri } from "./file";
@@ -222,7 +222,7 @@ async function replaceMinutesFile(minutesId: string, fileUri: string) {
     ?minutes prov:value ?document .
   } INSERT {
     ?minutes prov:value ${sparqlEscapeUri(fileUri)} .
-    ?minutes dct:modified ${sparqlEscapeDate(new Date())}
+    ?minutes dct:modified ${sparqlEscapeDateTime(new Date())}
   } WHERE {
     ?minutes mu:uuid ${sparqlEscapeString(minutesId)} .
     ?minutes a ext:Notulen .

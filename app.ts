@@ -8,8 +8,8 @@ import {
   sparqlEscapeDateTime, 
   uuid as generateUuid 
 } from "mu";
-import { createFile, FileMeta, FileMetaNoUri } from "./file";
-import { STORAGE_PATH, STORAGE_URI } from "./config";
+import { createFile, FileMeta, PhysicalFile, VirtualFile } from "./file";
+import { RESOURCE_BASE, STORAGE_PATH } from "./config";
 import sanitizeHtml from "sanitize-html";
 import * as fs from "fs";
 import fetch from "node-fetch";
@@ -33,15 +33,21 @@ export type Secretary = {
   title: string;
 };
 
+function generateMinutesName(meeting: Meeting): string {
+  const padZeroes = (n: number) => String(n).padStart(2, '0');
+
+  const { plannedStart } = meeting;
+  const year = plannedStart.getFullYear();
+  const month = padZeroes(plannedStart.getMonth() + 1);
+  const day = padZeroes(plannedStart.getDate());
+  return `Notulen - P${year}-${month}-${day}.pdf`.replace('/', '-');
+}
+
 async function generatePdf(
   part: string,
   meeting: Meeting,
   secretary: Secretary | undefined
 ): Promise<FileMeta> {
-  const uuid = generateUuid();
-  const fileName = `${uuid}.pdf`;
-  const filePath = `${STORAGE_PATH}/${fileName}`;
-
   const html = renderMinutes(part, meeting, secretary);
   const htmlString = `${createStyleHeader()}${html}`;
 
@@ -55,16 +61,37 @@ async function generatePdf(
 
   if (response.ok) {
     const buffer = await response.buffer();
-    const fileMeta: FileMetaNoUri = {
+
+    const now = new Date();
+    const physicalUuid = generateUuid();
+    const physicalName = `${physicalUuid}.pdf`;
+    const filePath = `${STORAGE_PATH}/${physicalName}`;
+
+    const physicalFile: PhysicalFile = {
+      id: physicalUuid,
+      uri: filePath.replace('/share/', 'share://'),
+      name: physicalName,
+      extension: "pdf",
+      size: buffer.byteLength,
+      created: now,
+      format: "application/pdf",
+    };
+
+    const virtualUuid = generateUuid();
+    const fileName = generateMinutesName(meeting);
+    const file: VirtualFile = {
+      id: virtualUuid,
+      uri: `${RESOURCE_BASE}/files/${virtualUuid}`,
       name: fileName,
       extension: "pdf",
       size: buffer.byteLength,
-      created: new Date(),
+      created: now,
       format: "application/pdf",
-      id: uuid,
+      physicalFile,
     };
     fs.writeFileSync(filePath, buffer);
-    return await createFile(fileMeta, `${STORAGE_URI}${fileMeta.name}`);
+    await createFile(file);
+    return file;
   } else {
     if (response.headers["Content-Type"] === "application/vnd.api+json") {
       const errorResponse = await response.json();

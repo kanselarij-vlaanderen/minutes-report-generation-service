@@ -19,6 +19,7 @@ export function monthName(date: Date) {
     "mei",
     "juni",
     "juli",
+    "augustus",
     "september",
     "oktober",
     "november",

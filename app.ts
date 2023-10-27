@@ -1,7 +1,15 @@
 import { renderMinutes, createStyleHeader } from "./render-minutes";
-import { app, query, sparqlEscapeString, uuid as generateUuid } from "mu";
-import { createFile, FileMeta, FileMetaNoUri } from "./file";
-import { STORAGE_PATH, STORAGE_URI } from "./config";
+import {
+  app,
+  query,
+  update,
+  sparqlEscapeString,
+  sparqlEscapeUri,
+  sparqlEscapeDateTime,
+  uuid as generateUuid
+} from "mu";
+import { createFile, FileMeta, PhysicalFile, VirtualFile } from "./file";
+import { RESOURCE_BASE, STORAGE_PATH } from "./config";
 import sanitizeHtml from "sanitize-html";
 import * as fs from "fs";
 import fetch from "node-fetch";
@@ -9,6 +17,10 @@ import fetch from "node-fetch";
 export interface Meeting {
   plannedStart: Date;
   numberRepresentation: number;
+}
+
+export type File = {
+  id: string;
 }
 
 export interface Person {
@@ -21,15 +33,21 @@ export type Secretary = {
   title: string;
 };
 
+function generateMinutesName(meeting: Meeting): string {
+  const padZeroes = (n: number) => String(n).padStart(2, '0');
+
+  const { plannedStart } = meeting;
+  const year = plannedStart.getFullYear();
+  const month = padZeroes(plannedStart.getMonth() + 1);
+  const day = padZeroes(plannedStart.getDate());
+  return `Notulen - P${year}-${month}-${day}.pdf`.replace('/', '-');
+}
+
 async function generatePdf(
   part: string,
   meeting: Meeting,
   secretary: Secretary | undefined
 ): Promise<FileMeta> {
-  const uuid = generateUuid();
-  const fileName = `${uuid}.pdf`;
-  const filePath = `${STORAGE_PATH}/${fileName}`;
-
   const html = renderMinutes(part, meeting, secretary);
   const htmlString = `${createStyleHeader()}${html}`;
 
@@ -43,16 +61,37 @@ async function generatePdf(
 
   if (response.ok) {
     const buffer = await response.buffer();
-    const fileMeta: FileMetaNoUri = {
+
+    const now = new Date();
+    const physicalUuid = generateUuid();
+    const physicalName = `${physicalUuid}.pdf`;
+    const filePath = `${STORAGE_PATH}/${physicalName}`;
+
+    const physicalFile: PhysicalFile = {
+      id: physicalUuid,
+      uri: filePath.replace('/share/', 'share://'),
+      name: physicalName,
+      extension: "pdf",
+      size: buffer.byteLength,
+      created: now,
+      format: "application/pdf",
+    };
+
+    const virtualUuid = generateUuid();
+    const fileName = generateMinutesName(meeting);
+    const file: VirtualFile = {
+      id: virtualUuid,
+      uri: `${RESOURCE_BASE}/files/${virtualUuid}`,
       name: fileName,
       extension: "pdf",
       size: buffer.byteLength,
-      created: new Date(),
+      created: now,
       format: "application/pdf",
-      id: uuid,
+      physicalFile,
     };
     fs.writeFileSync(filePath, buffer);
-    return await createFile(fileMeta, `${STORAGE_URI}${fileMeta.name}`);
+    await createFile(file);
+    return file;
   } else {
     if (response.headers["Content-Type"] === "application/vnd.api+json") {
       const errorResponse = await response.json();
@@ -63,6 +102,44 @@ async function generatePdf(
     }
     throw new Error("Something went wrong while generating the pdf");
   }
+}
+
+async function deleteFile(requestHeaders, file: File) {
+  try {
+    const response = await fetch(`http://file/files/${file.id}`, {
+      method: "delete",
+      headers: requestHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Something went wrong while removing the file: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error(`Could not delete file with id: ${file.id}. Error:`, error);
+  }
+}
+
+async function retrieveOldFile(notulenId: string): Promise<File | null> {
+  const queryString = `
+  PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+  PREFIX prov: <http://www.w3.org/ns/prov#>
+  PREFIX nfo: <http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#>
+  PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+  select ?fileId WHERE {
+    ?notulen mu:uuid ${sparqlEscapeString(notulenId)} .
+    ?notulen a ext:Notulen .
+    ?notulen prov:value ?file .
+    ?file a nfo:FileDataObject .
+    ?file mu:uuid ?fileId .
+  }
+  `;
+
+  const queryResult = await query(queryString);
+  if (queryResult.results?.bindings?.length) {
+    const result = queryResult.results.bindings[0];
+    return { id: result.fileId.value };
+  }
+  return null;
 }
 
 async function retrieveMinutesPart(minutesId: string): Promise<string | null> {
@@ -161,6 +238,30 @@ async function retrieveSecretary(
   }
 }
 
+async function replaceMinutesFile(minutesId: string, fileUri: string) {
+  const queryString = `
+  PREFIX prov: <http://www.w3.org/ns/prov#>
+  PREFIX dct: <http://purl.org/dc/terms/>
+  PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+  PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+  DELETE {
+    ?minutes prov:value ?document .
+    ?minutes dct:modified ?modified .
+  } INSERT {
+    ?minutes prov:value ${sparqlEscapeUri(fileUri)} .
+    ?minutes dct:modified ${sparqlEscapeDateTime(new Date())}
+  } WHERE {
+    ?minutes mu:uuid ${sparqlEscapeString(minutesId)} .
+    ?minutes a ext:Notulen .
+    OPTIONAL { ?minutes prov:value ?document .}
+    OPTIONAL { ?minutes dct:modified ?modified .}
+  }
+  `;
+  await update(queryString);
+}
+
+
 async function retrieveSignFlowStatus(
   minutesId: string
 ): Promise<Secretary | undefined> {
@@ -214,9 +315,17 @@ app.get("/:id", async function (req, res) {
     }
 
     const secretary = await retrieveSecretary(req.params.id);
+    const oldFile = await retrieveOldFile(req.params.id);
     const sanitizedPart = sanitizeHtml(minutesPart, sanitizeHtml.defaults);
     const fileMeta = await generatePdf(sanitizedPart, meeting, secretary);
-    res.send(fileMeta);
+    if (fileMeta) {
+      await replaceMinutesFile(req.params.id, fileMeta.uri);
+      if (oldFile) {
+        await deleteFile(req.headers, oldFile);
+      }
+      return res.status(200).send(fileMeta);
+    }
+    throw new Error('Something went wrong while generating the pdf');
   } catch (e) {
     res.status(500);
     console.error(e);

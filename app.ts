@@ -264,7 +264,7 @@ async function replaceMinutesFile(minutesId: string, fileUri: string) {
 
 async function retrieveSignFlowStatus(
   minutesId: string
-): Promise<Secretary | undefined> {
+): Promise<string | undefined> {
   const dataQuery = `
   PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
   PREFIX sign: <http://mu.semte.ch/vocabularies/ext/handtekenen/>

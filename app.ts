@@ -161,12 +161,48 @@ async function retrieveSecretary(
   }
 }
 
+async function retrieveSignFlowStatus(
+  minutesId: string
+): Promise<Secretary | undefined> {
+  const dataQuery = `
+  PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+  PREFIX sign: <http://mu.semte.ch/vocabularies/ext/handtekenen/>
+  PREFIX adms: <http://www.w3.org/ns/adms#>
+
+  SELECT DISTINCT ?minutes ?signFlow ?status WHERE {
+    ?minutes mu:uuid ${sparqlEscapeString(minutesId)}
+    OPTIONAL {
+      ?signMarkingActivity sign:gemarkeerdStuk ?minutes .
+      ?signMarkingActivity sign:markeringVindtPlaatsTijdens ?signSubcase .
+      ?signFlow sign:doorlooptHandtekening ?signSubcase .
+      ?signFlow adms:status ?status .
+    }
+  }
+  `;
+  const queryResult = await query(dataQuery);
+  if (
+    queryResult.results &&
+    queryResult.results.bindings &&
+    queryResult.results.bindings.length
+  ) {
+    const result = queryResult.results.bindings[0];
+    return result?.status?.value;
+  }
+}
+
 app.get("/:id", async function (req, res) {
   try {
     const minutesPart = await retrieveMinutesPart(req.params.id);
     if (!minutesPart) {
       res.status(500);
       res.send(`No minutes with id "${req.params.id}" found.`);
+      return;
+    }
+
+    const signFlowStatus = await retrieveSignFlowStatus(req.params.id);
+    if (signFlowStatus && signFlowStatus !== "http://themis.vlaanderen.be/id/handtekenstatus/f6a60072-0537-11ee-bb35-ee395168dcf7") {
+      res.status(500);
+      res.send("Cannot edit minutes that have signatures.");
       return;
     }
 

@@ -316,7 +316,27 @@ app.get("/:id", async function (req, res) {
 
     const secretary = await retrieveSecretary(req.params.id);
     const oldFile = await retrieveOldFile(req.params.id);
-    const sanitizedPart = sanitizeHtml(minutesPart, sanitizeHtml.defaults);
+
+    const sanitizeOptions = {
+      ...sanitizeHtml.defaults,
+      allowedAttributes: {
+        table: [
+          {
+            name: 'id',
+            multiple: true,
+            values: ['attendees', 'absentees', 'announcements']
+          }
+        ],
+        h4: [
+          {
+            name: 'id',
+            multiple: true,
+            values: ['announcements']
+          }
+        ]
+      }
+    }
+    const sanitizedPart = sanitizeHtml(minutesPart, sanitizeOptions);
     const fileMeta = await generatePdf(sanitizedPart, meeting, secretary);
     if (fileMeta) {
       await replaceMinutesFile(req.params.id, fileMeta.uri);

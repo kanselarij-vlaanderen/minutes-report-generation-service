@@ -8,7 +8,7 @@
 
   @bottom-right {
     font-family: Arial;
-    content: counter(page) "/" counter(pages);
+    content: "Pagina " counter(page) " van " counter(pages);
   }
 }
 
@@ -18,7 +18,7 @@
 
 body {
   font-family: "Flanders Art Sans";
-  font-size: 12pt;
+  font-size: 11pt;
   line-height: 1.8;
   font-variant-ligatures: none;
 }
@@ -48,4 +48,12 @@ table {
 th, td {
   text-align: left;
   vertical-align: top;
+}
+
+#absentees {
+  break-after: page;
+}
+
+.separator {
+  text-align: center;
 }

@@ -1,4 +1,4 @@
-import { Meeting, Secretary } from "./app";
+import { MinutesContext, Secretary } from "./app";
 import { formatDate } from "./utils";
 import { MEETING_KINDS } from "./config";
 import * as fs from "fs";
@@ -118,8 +118,8 @@ function renderLogo() {
   `;
 }
 
-function renderHeader(meeting: Meeting) {
-  const { plannedStart, numberRepresentation, kind, kindLabel } = meeting;
+function renderHeader(context: MinutesContext) {
+  const { plannedStart, numberRepresentation, kind, kindLabel } = context;
   let title = `<p class="header-text">
     NOTULEN VAN DE ${kindLabel.replace(/Ministerraad/i, 'vergadering').toUpperCase()} VAN ${formatDate(plannedStart)}
   </p>`;
@@ -158,10 +158,10 @@ export function createStyleHeader() {
 
 export function renderMinutes(
   part: string,
-  meeting: Meeting,
+  context: MinutesContext,
   secretary: Secretary | undefined
 ) {
-  let minutesHtml = ` ${renderHeader(meeting)}
+  let minutesHtml = ` ${renderHeader(context)}
     <div>${part}</div>`;
   minutesHtml = minutesHtml.replace('<h4 id="announcements"',
       `${sectionSeparator}

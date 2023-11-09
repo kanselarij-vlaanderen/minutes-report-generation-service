@@ -14,11 +14,12 @@ import sanitizeHtml from "sanitize-html";
 import * as fs from "fs";
 import fetch from "node-fetch";
 
-export interface Meeting {
+export interface MinutesContext {
   plannedStart: Date;
   numberRepresentation: number;
   kind: string;
   kindLabel: string;
+  minutesName: string;
 }
 
 export type File = {
@@ -35,18 +36,16 @@ export type Secretary = {
   title: string;
 };
 
-function generateMinutesFileName(meeting: Meeting): string {
-  const suffix = meeting.kind === MEETING_KINDS.PVV ? '-VV' : '';
-  const name = `VR PV ${meeting.numberRepresentation}${suffix}`;
-  return `${name}.pdf`.replace('/', '-');
+function generateMinutesFileName(context: MinutesContext): string {
+  return `${context.minutesName}.pdf`.replace('/', '-');
 }
 
 async function generatePdf(
   part: string,
-  meeting: Meeting,
+  context: MinutesContext,
   secretary: Secretary | undefined
 ): Promise<FileMeta> {
-  const html = renderMinutes(part, meeting, secretary);
+  const html = renderMinutes(part, context, secretary);
   const htmlString = `${createStyleHeader()}${html}`;
 
   const response = await fetch("http://html-to-pdf/generate", {
@@ -76,7 +75,7 @@ async function generatePdf(
     };
 
     const virtualUuid = generateUuid();
-    const fileName = generateMinutesFileName(meeting);
+    const fileName = generateMinutesFileName(context);
     const file: VirtualFile = {
       id: virtualUuid,
       uri: `${RESOURCE_BASE}/files/${virtualUuid}`,
@@ -169,7 +168,7 @@ async function retrieveMinutesPart(minutesId: string): Promise<string | null> {
   return bindings[0].htmlContent.value;
 }
 
-async function retrieveMeeting(minutesId: string): Promise<Meeting> {
+async function retrieveContext(minutesId: string): Promise<MinutesContext> {
   const dataQuery = `
   PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
   PREFIX dossier: <https://data.vlaanderen.be/ns/dossier#>
@@ -179,9 +178,10 @@ async function retrieveMeeting(minutesId: string): Promise<Meeting> {
   PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
   PREFIX dct: <http://purl.org/dc/terms/>
 
-  SELECT DISTINCT ?numberRepresentation ?geplandeStart ?kind ?kindLabel WHERE {
+  SELECT DISTINCT ?numberRepresentation ?geplandeStart ?kind ?kindLabel ?minutesName WHERE {
     ?minutes mu:uuid ${sparqlEscapeString(minutesId)} .
     ?minutes a ext:Notulen .
+    ?minutes dct:title ?minutesName .
     ?minutes ^besluitvorming:heeftNotulen ?meeting .
     ?meeting ext:numberRepresentation ?numberRepresentation .
     ?meeting besluit:geplandeStart ?geplandeStart .
@@ -191,7 +191,7 @@ async function retrieveMeeting(minutesId: string): Promise<Meeting> {
   `;
   const {
     results: {
-      bindings: [{ numberRepresentation, geplandeStart, kind, kindLabel }],
+      bindings: [{ numberRepresentation, geplandeStart, kind, kindLabel, minutesName }],
     },
   } = await query(dataQuery);
   return {
@@ -199,6 +199,7 @@ async function retrieveMeeting(minutesId: string): Promise<Meeting> {
     numberRepresentation: numberRepresentation.value,
     kind: kind.value,
     kindLabel: kindLabel.value,
+    minutesName: minutesName.value,
   };
 }
 
@@ -311,7 +312,7 @@ app.get("/:id", async function (req, res) {
       return;
     }
 
-    const meeting = await retrieveMeeting(req.params.id);
+    const meeting = await retrieveContext(req.params.id);
     if (!meeting) {
       res.status(500);
       res.send("Could not find meeting related to minutes.");

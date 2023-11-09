@@ -1,8 +1,9 @@
 import { Meeting, Secretary } from "./app";
 import { formatDate } from "./utils";
+import { MEETING_KINDS } from "./config";
 import * as fs from "fs";
 
-const announcementsSeparator = `<div class="separator">
+const sectionSeparator = `<div class="separator">
   <svg
     style="align-self: center; margin: 0 auto; margin-top: 4rem"
     viewBox="0 0 100 30"
@@ -118,15 +119,27 @@ function renderLogo() {
 }
 
 function renderHeader(meeting: Meeting) {
-  const { plannedStart, numberRepresentation } = meeting;
+  const { plannedStart, numberRepresentation, kind, kindLabel } = meeting;
+  let title = `<p class="header-text">
+    NOTULEN VAN DE ${kindLabel.replace(/Ministerraad/i, 'vergadering').toUpperCase()} VAN ${formatDate(plannedStart)}
+  </p>`;
+  if (kind === MEETING_KINDS.ELECTRONIC_PROCEDURE) {
+    title = `<p class="header-text">
+      NOTULEN VAN ${formatDate(plannedStart)}<br/><br/>
+      ${kindLabel.replace(/Procedure/i, 'Ministerraad').toUpperCase()}
+    </p>`;
+  } else if (kind === MEETING_KINDS.PVV) {
+    title = `<p class="header-text">
+      NOTULEN VAN ${formatDate(plannedStart)}<br/><br/>
+      ${kindLabel.replace('Ministerraad - ', '').toUpperCase()}
+    </p>`;
+  }
   return `
     <div>
       ${renderLogo()}
       <div>
         <p>${numberRepresentation}</p>
-        <p class="header-text">
-          NOTULEN VAN DE VERGADERING VAN ${formatDate(plannedStart)}
-        </p>
+        ${title}
       </div>
     </div>
   `;
@@ -151,8 +164,11 @@ export function renderMinutes(
   let minutesHtml = ` ${renderHeader(meeting)}
     <div>${part}</div>`;
   minutesHtml = minutesHtml.replace('<h4 id="announcements"',
-      `${announcementsSeparator}
+      `${sectionSeparator}
       <h4 id="announcements"`
+  ).replace('<p><span id="next-meeting">',
+    `${sectionSeparator}
+    <p><span id="next-meeting">`
   );
   if (secretary && secretary.person) {
     minutesHtml += `

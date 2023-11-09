@@ -9,7 +9,7 @@ import {
   uuid as generateUuid
 } from "mu";
 import { createFile, FileMeta, PhysicalFile, VirtualFile } from "./file";
-import { RESOURCE_BASE, STORAGE_PATH } from "./config";
+import { RESOURCE_BASE, STORAGE_PATH, MEETING_KINDS } from "./config";
 import sanitizeHtml from "sanitize-html";
 import * as fs from "fs";
 import fetch from "node-fetch";
@@ -17,6 +17,8 @@ import fetch from "node-fetch";
 export interface Meeting {
   plannedStart: Date;
   numberRepresentation: number;
+  kind: string;
+  kindLabel: string;
 }
 
 export type File = {
@@ -40,7 +42,12 @@ function generateMinutesName(meeting: Meeting): string {
   const year = plannedStart.getFullYear();
   const month = padZeroes(plannedStart.getMonth() + 1);
   const day = padZeroes(plannedStart.getDate());
-  return `Notulen - P${year}-${month}-${day}.pdf`.replace('/', '-');
+  const suffix = meeting.kind === MEETING_KINDS.PVV ? '-VV' : '';
+  const name = `VR PV ${dateFormat(
+    this.meeting.plannedStart,
+    'yyyy'
+  )}/${this.meeting.number}${suffix}`;
+  return name;
 }
 
 async function generatePdf(
@@ -178,23 +185,29 @@ async function retrieveMeeting(minutesId: string): Promise<Meeting> {
   PREFIX besluitvorming: <https://data.vlaanderen.be/ns/besluitvorming#>
   PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
   PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+  PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+  PREFIX dct: <http://purl.org/dc/terms/>
 
-  SELECT DISTINCT ?numberRepresentation ?geplandeStart WHERE {
+  SELECT DISTINCT ?numberRepresentation ?geplandeStart ?kind ?kindLabel WHERE {
     ?minutes mu:uuid ${sparqlEscapeString(minutesId)} .
     ?minutes a ext:Notulen .
     ?minutes ^besluitvorming:heeftNotulen ?meeting .
     ?meeting ext:numberRepresentation ?numberRepresentation .
     ?meeting besluit:geplandeStart ?geplandeStart .
+    ?meeting dct:type ?kind .
+    ?kind skos:prefLabel ?kindLabel .
   }
   `;
   const {
     results: {
-      bindings: [{ numberRepresentation, geplandeStart }],
+      bindings: [{ numberRepresentation, geplandeStart, kind, kindLabel }],
     },
   } = await query(dataQuery);
   return {
     plannedStart: new Date(geplandeStart.value),
     numberRepresentation: numberRepresentation.value,
+    kind: kind.value,
+    kindLabel: kindLabel.value,
   };
 }
 
@@ -323,15 +336,19 @@ app.get("/:id", async function (req, res) {
         table: [
           {
             name: 'id',
-            multiple: true,
             values: ['attendees', 'absentees', 'announcements']
           }
         ],
         h4: [
           {
             name: 'id',
-            multiple: true,
             values: ['announcements']
+          }
+        ],
+        span: [
+          {
+            name: 'id',
+            values: ['next-meeting']
           }
         ]
       }

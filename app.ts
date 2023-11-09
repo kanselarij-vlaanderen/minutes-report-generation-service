@@ -9,14 +9,17 @@ import {
   uuid as generateUuid
 } from "mu";
 import { createFile, FileMeta, PhysicalFile, VirtualFile } from "./file";
-import { RESOURCE_BASE, STORAGE_PATH } from "./config";
+import { RESOURCE_BASE, STORAGE_PATH, MEETING_KINDS } from "./config";
 import sanitizeHtml from "sanitize-html";
 import * as fs from "fs";
 import fetch from "node-fetch";
 
-export interface Meeting {
+export interface MinutesContext {
   plannedStart: Date;
   numberRepresentation: number;
+  kind: string;
+  kindLabel: string;
+  minutesName: string;
 }
 
 export type File = {
@@ -33,22 +36,16 @@ export type Secretary = {
   title: string;
 };
 
-function generateMinutesName(meeting: Meeting): string {
-  const padZeroes = (n: number) => String(n).padStart(2, '0');
-
-  const { plannedStart } = meeting;
-  const year = plannedStart.getFullYear();
-  const month = padZeroes(plannedStart.getMonth() + 1);
-  const day = padZeroes(plannedStart.getDate());
-  return `Notulen - P${year}-${month}-${day}.pdf`.replace('/', '-');
+function generateMinutesFileName(context: MinutesContext): string {
+  return `${context.minutesName}.pdf`.replace('/', '-');
 }
 
 async function generatePdf(
   part: string,
-  meeting: Meeting,
+  context: MinutesContext,
   secretary: Secretary | undefined
 ): Promise<FileMeta> {
-  const html = renderMinutes(part, meeting, secretary);
+  const html = renderMinutes(part, context, secretary);
   const htmlString = `${createStyleHeader()}${html}`;
 
   const response = await fetch("http://html-to-pdf/generate", {
@@ -78,7 +75,7 @@ async function generatePdf(
     };
 
     const virtualUuid = generateUuid();
-    const fileName = generateMinutesName(meeting);
+    const fileName = generateMinutesFileName(context);
     const file: VirtualFile = {
       id: virtualUuid,
       uri: `${RESOURCE_BASE}/files/${virtualUuid}`,
@@ -171,30 +168,38 @@ async function retrieveMinutesPart(minutesId: string): Promise<string | null> {
   return bindings[0].htmlContent.value;
 }
 
-async function retrieveMeeting(minutesId: string): Promise<Meeting> {
+async function retrieveContext(minutesId: string): Promise<MinutesContext> {
   const dataQuery = `
   PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
   PREFIX dossier: <https://data.vlaanderen.be/ns/dossier#>
   PREFIX besluitvorming: <https://data.vlaanderen.be/ns/besluitvorming#>
   PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
   PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+  PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+  PREFIX dct: <http://purl.org/dc/terms/>
 
-  SELECT DISTINCT ?numberRepresentation ?geplandeStart WHERE {
+  SELECT DISTINCT ?numberRepresentation ?geplandeStart ?kind ?kindLabel ?minutesName WHERE {
     ?minutes mu:uuid ${sparqlEscapeString(minutesId)} .
     ?minutes a ext:Notulen .
+    ?minutes dct:title ?minutesName .
     ?minutes ^besluitvorming:heeftNotulen ?meeting .
     ?meeting ext:numberRepresentation ?numberRepresentation .
     ?meeting besluit:geplandeStart ?geplandeStart .
+    ?meeting dct:type ?kind .
+    ?kind skos:prefLabel ?kindLabel .
   }
   `;
   const {
     results: {
-      bindings: [{ numberRepresentation, geplandeStart }],
+      bindings: [{ numberRepresentation, geplandeStart, kind, kindLabel, minutesName }],
     },
   } = await query(dataQuery);
   return {
     plannedStart: new Date(geplandeStart.value),
     numberRepresentation: numberRepresentation.value,
+    kind: kind.value,
+    kindLabel: kindLabel.value,
+    minutesName: minutesName.value,
   };
 }
 
@@ -307,7 +312,7 @@ app.get("/:id", async function (req, res) {
       return;
     }
 
-    const meeting = await retrieveMeeting(req.params.id);
+    const meeting = await retrieveContext(req.params.id);
     if (!meeting) {
       res.status(500);
       res.send("Could not find meeting related to minutes.");
@@ -316,7 +321,31 @@ app.get("/:id", async function (req, res) {
 
     const secretary = await retrieveSecretary(req.params.id);
     const oldFile = await retrieveOldFile(req.params.id);
-    const sanitizedPart = sanitizeHtml(minutesPart, sanitizeHtml.defaults);
+
+    const sanitizeOptions = {
+      ...sanitizeHtml.defaults,
+      allowedAttributes: {
+        table: [
+          {
+            name: 'id',
+            values: ['attendees', 'absentees', 'announcements']
+          }
+        ],
+        h4: [
+          {
+            name: 'id',
+            values: ['announcements']
+          }
+        ],
+        span: [
+          {
+            name: 'id',
+            values: ['next-meeting']
+          }
+        ]
+      }
+    }
+    const sanitizedPart = sanitizeHtml(minutesPart, sanitizeOptions);
     const fileMeta = await generatePdf(sanitizedPart, meeting, secretary);
     if (fileMeta) {
       await replaceMinutesFile(req.params.id, fileMeta.uri);

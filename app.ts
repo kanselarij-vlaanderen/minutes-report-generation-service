@@ -35,19 +35,10 @@ export type Secretary = {
   title: string;
 };
 
-function generateMinutesName(meeting: Meeting): string {
-  const padZeroes = (n: number) => String(n).padStart(2, '0');
-
-  const { plannedStart } = meeting;
-  const year = plannedStart.getFullYear();
-  const month = padZeroes(plannedStart.getMonth() + 1);
-  const day = padZeroes(plannedStart.getDate());
+function generateMinutesFileName(meeting: Meeting): string {
   const suffix = meeting.kind === MEETING_KINDS.PVV ? '-VV' : '';
-  const name = `VR PV ${dateFormat(
-    this.meeting.plannedStart,
-    'yyyy'
-  )}/${this.meeting.number}${suffix}`;
-  return name;
+  const name = `VR PV ${meeting.numberRepresentation}${suffix}`;
+  return `${name}.pdf`.replace('/', '-');
 }
 
 async function generatePdf(
@@ -85,7 +76,7 @@ async function generatePdf(
     };
 
     const virtualUuid = generateUuid();
-    const fileName = generateMinutesName(meeting);
+    const fileName = generateMinutesFileName(meeting);
     const file: VirtualFile = {
       id: virtualUuid,
       uri: `${RESOURCE_BASE}/files/${virtualUuid}`,

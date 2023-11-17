@@ -1,9 +1,9 @@
-const RESOURCE_BASE = 'http://mu.semte.ch/services/decision-report-generation';
+const FILE_RESOURCE_BASE = 'http://themis.vlaanderen.be/id/bestand/';
 const STORAGE_PATH = `/share`;
 const STORAGE_URI = `share://`;
 
 export {
-  RESOURCE_BASE,
+  FILE_RESOURCE_BASE,
   STORAGE_PATH,
   STORAGE_URI,
 };

@@ -6,7 +6,7 @@ import {
   update,
   uuid as generateUuid,
 } from "mu";
-import { RESOURCE_BASE } from "./config";
+import { FILE_RESOURCE_BASE } from "./config";
 
 export interface FileMeta {
   name: string;
@@ -24,7 +24,7 @@ const createFile = async function (
   file: FileMetaNoUri,
   physicalUri: string
 ): Promise<FileMeta> {
-  const uri = RESOURCE_BASE + `/files/${file.id}`;
+  const uri = FILE_RESOURCE_BASE + `${file.id}`;
   const physicalUuid = generateUuid();
   const q = `
   PREFIX mu: <http://mu.semte.ch/vocabularies/core/>

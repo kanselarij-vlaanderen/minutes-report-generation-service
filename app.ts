@@ -1,14 +1,29 @@
 import { renderMinutes, createStyleHeader } from "./render-minutes";
-import { app, query, sparqlEscapeString, uuid as generateUuid } from "mu";
-import { createFile, FileMeta, FileMetaNoUri } from "./file";
-import { STORAGE_PATH, STORAGE_URI } from "./config";
+import {
+  app,
+  query,
+  update,
+  sparqlEscapeString,
+  sparqlEscapeUri,
+  sparqlEscapeDateTime,
+  uuid as generateUuid
+} from "mu";
+import { createFile, FileMeta, PhysicalFile, VirtualFile } from "./file";
+import { FILE_RESOURCE_BASE, STORAGE_PATH, MEETING_KINDS } from "./config";
 import sanitizeHtml from "sanitize-html";
 import * as fs from "fs";
 import fetch from "node-fetch";
 
-export interface Meeting {
+export interface MinutesContext {
   plannedStart: Date;
   numberRepresentation: number;
+  kind: string;
+  kindLabel: string;
+  minutesName: string;
+}
+
+export type File = {
+  id: string;
 }
 
 export interface Person {
@@ -21,16 +36,16 @@ export type Secretary = {
   title: string;
 };
 
+function generateMinutesFileName(context: MinutesContext): string {
+  return `${context.minutesName}.pdf`.replace('/', '-');
+}
+
 async function generatePdf(
   part: string,
-  meeting: Meeting,
+  context: MinutesContext,
   secretary: Secretary | undefined
 ): Promise<FileMeta> {
-  const uuid = generateUuid();
-  const fileName = `${uuid}.pdf`;
-  const filePath = `${STORAGE_PATH}/${fileName}`;
-
-  const html = renderMinutes(part, meeting, secretary);
+  const html = renderMinutes(part, context, secretary);
   const htmlString = `${createStyleHeader()}${html}`;
 
   const response = await fetch("http://html-to-pdf/generate", {
@@ -43,16 +58,37 @@ async function generatePdf(
 
   if (response.ok) {
     const buffer = await response.buffer();
-    const fileMeta: FileMetaNoUri = {
+
+    const now = new Date();
+    const physicalUuid = generateUuid();
+    const physicalName = `${physicalUuid}.pdf`;
+    const filePath = `${STORAGE_PATH}/${physicalName}`;
+
+    const physicalFile: PhysicalFile = {
+      id: physicalUuid,
+      uri: filePath.replace('/share/', 'share://'),
+      name: physicalName,
+      extension: "pdf",
+      size: buffer.byteLength,
+      created: now,
+      format: "application/pdf",
+    };
+
+    const virtualUuid = generateUuid();
+    const fileName = generateMinutesFileName(context);
+    const file: VirtualFile = {
+      id: virtualUuid,
+      uri: `${FILE_RESOURCE_BASE}${virtualUuid}`,
       name: fileName,
       extension: "pdf",
       size: buffer.byteLength,
-      created: new Date(),
+      created: now,
       format: "application/pdf",
-      id: uuid,
+      physicalFile,
     };
     fs.writeFileSync(filePath, buffer);
-    return await createFile(fileMeta, `${STORAGE_URI}${fileMeta.name}`);
+    await createFile(file);
+    return file;
   } else {
     if (response.headers["Content-Type"] === "application/vnd.api+json") {
       const errorResponse = await response.json();
@@ -63,6 +99,44 @@ async function generatePdf(
     }
     throw new Error("Something went wrong while generating the pdf");
   }
+}
+
+async function deleteFile(requestHeaders, file: File) {
+  try {
+    const response = await fetch(`http://file/files/${file.id}`, {
+      method: "delete",
+      headers: requestHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Something went wrong while removing the file: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error(`Could not delete file with id: ${file.id}. Error:`, error);
+  }
+}
+
+async function retrieveOldFile(notulenId: string): Promise<File | null> {
+  const queryString = `
+  PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+  PREFIX prov: <http://www.w3.org/ns/prov#>
+  PREFIX nfo: <http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#>
+  PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+  select ?fileId WHERE {
+    ?notulen mu:uuid ${sparqlEscapeString(notulenId)} .
+    ?notulen a ext:Notulen .
+    ?notulen prov:value ?file .
+    ?file a nfo:FileDataObject .
+    ?file mu:uuid ?fileId .
+  }
+  `;
+
+  const queryResult = await query(queryString);
+  if (queryResult.results?.bindings?.length) {
+    const result = queryResult.results.bindings[0];
+    return { id: result.fileId.value };
+  }
+  return null;
 }
 
 async function retrieveMinutesPart(minutesId: string): Promise<string | null> {
@@ -79,7 +153,7 @@ async function retrieveMinutesPart(minutesId: string): Promise<string | null> {
     ?s mu:uuid ${sparqlEscapeString(minutesId)} .
     ?s a ext:Notulen .
  	  ?piecePart dct:isPartOf ?s .
-    ?piecePart prov:value ?value .
+    ?piecePart prov:value ?htmlContent .
     FILTER(NOT EXISTS { [] pav:previousVersion ?piecePart }) .
   }
   `;
@@ -91,33 +165,41 @@ async function retrieveMinutesPart(minutesId: string): Promise<string | null> {
     return null;
   }
 
-  return bindings[0].value.value;
+  return bindings[0].htmlContent.value;
 }
 
-async function retrieveMeeting(minutesId: string): Promise<Meeting> {
+async function retrieveContext(minutesId: string): Promise<MinutesContext> {
   const dataQuery = `
   PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
   PREFIX dossier: <https://data.vlaanderen.be/ns/dossier#>
   PREFIX besluitvorming: <https://data.vlaanderen.be/ns/besluitvorming#>
   PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
   PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+  PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+  PREFIX dct: <http://purl.org/dc/terms/>
 
-  SELECT DISTINCT ?numberRepresentation ?geplandeStart WHERE {
+  SELECT DISTINCT ?numberRepresentation ?geplandeStart ?kind ?kindLabel ?minutesName WHERE {
     ?minutes mu:uuid ${sparqlEscapeString(minutesId)} .
     ?minutes a ext:Notulen .
+    ?minutes dct:title ?minutesName .
     ?minutes ^besluitvorming:heeftNotulen ?meeting .
     ?meeting ext:numberRepresentation ?numberRepresentation .
     ?meeting besluit:geplandeStart ?geplandeStart .
+    ?meeting dct:type ?kind .
+    ?kind skos:prefLabel ?kindLabel .
   }
   `;
   const {
     results: {
-      bindings: [{ numberRepresentation, geplandeStart }],
+      bindings: [{ numberRepresentation, geplandeStart, kind, kindLabel, minutesName }],
     },
   } = await query(dataQuery);
   return {
     plannedStart: new Date(geplandeStart.value),
     numberRepresentation: numberRepresentation.value,
+    kind: kind.value,
+    kindLabel: kindLabel.value,
+    minutesName: minutesName.value,
   };
 }
 
@@ -161,6 +243,59 @@ async function retrieveSecretary(
   }
 }
 
+async function replaceMinutesFile(minutesId: string, fileUri: string) {
+  const queryString = `
+  PREFIX prov: <http://www.w3.org/ns/prov#>
+  PREFIX dct: <http://purl.org/dc/terms/>
+  PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+  PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+  DELETE {
+    ?minutes prov:value ?document .
+    ?minutes dct:modified ?modified .
+  } INSERT {
+    ?minutes prov:value ${sparqlEscapeUri(fileUri)} .
+    ?minutes dct:modified ${sparqlEscapeDateTime(new Date())}
+  } WHERE {
+    ?minutes mu:uuid ${sparqlEscapeString(minutesId)} .
+    ?minutes a ext:Notulen .
+    OPTIONAL { ?minutes prov:value ?document .}
+    OPTIONAL { ?minutes dct:modified ?modified .}
+  }
+  `;
+  await update(queryString);
+}
+
+
+async function retrieveSignFlowStatus(
+  minutesId: string
+): Promise<string | undefined> {
+  const dataQuery = `
+  PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+  PREFIX sign: <http://mu.semte.ch/vocabularies/ext/handtekenen/>
+  PREFIX adms: <http://www.w3.org/ns/adms#>
+
+  SELECT DISTINCT ?minutes ?signFlow ?status WHERE {
+    ?minutes mu:uuid ${sparqlEscapeString(minutesId)}
+    OPTIONAL {
+      ?signMarkingActivity sign:gemarkeerdStuk ?minutes .
+      ?signMarkingActivity sign:markeringVindtPlaatsTijdens ?signSubcase .
+      ?signFlow sign:doorlooptHandtekening ?signSubcase .
+      ?signFlow adms:status ?status .
+    }
+  }
+  `;
+  const queryResult = await query(dataQuery);
+  if (
+    queryResult.results &&
+    queryResult.results.bindings &&
+    queryResult.results.bindings.length
+  ) {
+    const result = queryResult.results.bindings[0];
+    return result?.status?.value;
+  }
+}
+
 app.get("/:id", async function (req, res) {
   try {
     const minutesPart = await retrieveMinutesPart(req.params.id);
@@ -170,7 +305,14 @@ app.get("/:id", async function (req, res) {
       return;
     }
 
-    const meeting = await retrieveMeeting(req.params.id);
+    const signFlowStatus = await retrieveSignFlowStatus(req.params.id);
+    if (signFlowStatus && signFlowStatus !== "http://themis.vlaanderen.be/id/handtekenstatus/f6a60072-0537-11ee-bb35-ee395168dcf7") {
+      res.status(500);
+      res.send("Cannot edit minutes that have signatures.");
+      return;
+    }
+
+    const meeting = await retrieveContext(req.params.id);
     if (!meeting) {
       res.status(500);
       res.send("Could not find meeting related to minutes.");
@@ -178,9 +320,41 @@ app.get("/:id", async function (req, res) {
     }
 
     const secretary = await retrieveSecretary(req.params.id);
-    const sanitizedPart = sanitizeHtml(minutesPart, sanitizeHtml.defaults);
+    const oldFile = await retrieveOldFile(req.params.id);
+
+    const sanitizeOptions = {
+      ...sanitizeHtml.defaults,
+      allowedAttributes: {
+        table: [
+          {
+            name: 'id',
+            values: ['attendees', 'absentees', 'announcements']
+          }
+        ],
+        h4: [
+          {
+            name: 'id',
+            values: ['announcements']
+          }
+        ],
+        span: [
+          {
+            name: 'id',
+            values: ['next-meeting']
+          }
+        ]
+      }
+    }
+    const sanitizedPart = sanitizeHtml(minutesPart, sanitizeOptions);
     const fileMeta = await generatePdf(sanitizedPart, meeting, secretary);
-    res.send(fileMeta);
+    if (fileMeta) {
+      await replaceMinutesFile(req.params.id, fileMeta.uri);
+      if (oldFile) {
+        await deleteFile(req.headers, oldFile);
+      }
+      return res.status(200).send(fileMeta);
+    }
+    throw new Error('Something went wrong while generating the pdf');
   } catch (e) {
     res.status(500);
     console.error(e);

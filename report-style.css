@@ -50,6 +50,11 @@ th, td {
   vertical-align: top;
 }
 
+#attendees,
+#absentees {
+  table-layout: fixed;
+}
+
 #absentees {
   break-after: page;
 }

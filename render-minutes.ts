@@ -163,9 +163,9 @@ export function renderMinutes(
 ) {
   let minutesHtml = ` ${renderHeader(context)}
     <div>${part}</div>`;
-  minutesHtml = minutesHtml.replace('<h4 id="announcements"',
+  minutesHtml = minutesHtml.replace('<div id="announcements"',
       `${sectionSeparator}
-      <h4 id="announcements"`
+      <div id="announcements"`
   ).replace('<p><span id="next-meeting">',
     `${sectionSeparator}
     <p><span id="next-meeting">`

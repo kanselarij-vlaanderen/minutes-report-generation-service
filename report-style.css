@@ -81,6 +81,10 @@ ol:not(.au-c-list-horizontal)[data-list-style='lower-alpha'] {
   list-style-type: lower-alpha;
 }
 
+ol:not(.au-c-list-horizontal)[data-list-style='upper-alpha'] {
+  list-style-type: upper-alpha;
+}
+
 ol:not(.au-c-list-horizontal) > li > ol:not([data-list-style]) {
   list-style-type: inherit;
 }

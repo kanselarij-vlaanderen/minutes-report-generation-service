@@ -9,7 +9,12 @@ import {
   uuid as generateUuid
 } from "mu";
 import { createFile, FileMeta, PhysicalFile, VirtualFile } from "./file";
-import { FILE_RESOURCE_BASE, STORAGE_PATH, MEETING_KINDS } from "./config";
+import {
+  FILE_RESOURCE_BASE,
+  STORAGE_PATH,
+  MEETING_KINDS,
+  ENABLE_DEBUG_WRITE_GENERATED_HTML,
+} from "./config";
 import sanitizeHtml from "sanitize-html";
 import * as fs from "fs";
 import fetch from "node-fetch";
@@ -47,6 +52,12 @@ async function generatePdf(
 ): Promise<FileMeta> {
   const html = renderMinutes(part, context, secretary);
   const htmlString = `${createStyleHeader()}${html}`;
+  if (ENABLE_DEBUG_WRITE_GENERATED_HTML) {
+    fs.writeFileSync(
+      '/debug/rendered_minutes.html', 
+      htmlString
+    );
+  }
 
   const response = await fetch("http://html-to-pdf/generate", {
     method: "POST",

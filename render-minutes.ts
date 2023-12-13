@@ -172,12 +172,14 @@ export function renderMinutes(
   );
   if (secretary && secretary.person) {
     minutesHtml += `
-      <div class="signature">
-        <h3 style="font-weight: 500;">
-          ${secretary.person.firstName}
-          ${secretary.person.lastName.toUpperCase()},
-        </h3>
-        <p>${secretary.title}.</p>
+      <div class="signature-container">
+        <div>
+          <p style="font-weight: 500;">
+            ${secretary.person.firstName}
+            ${secretary.person.lastName.toUpperCase()},
+          </p>
+          <p>${secretary.title}.</p>
+        </div>
       </div>
     `;
   }

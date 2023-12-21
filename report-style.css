@@ -36,9 +36,16 @@ body {
   text-align: center;
 }
 
-.signature {
+.signature-container {
+  font-size: 12pt;
   margin-top: 6rem;
-  float: right;
+  margin-right: 6rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.signature-container p {
+  margin: 0;
 }
 
 table {

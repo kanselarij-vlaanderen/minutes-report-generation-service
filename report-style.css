@@ -70,6 +70,22 @@ th, td {
   text-align: center;
 }
 
+[data-indentation-level='1'] {
+  margin-left: 2.6rem;
+}
+
+[data-indentation-level='2'] {
+  margin-left: 5.2rem;
+}
+
+[data-indentation-level='3'] {
+  margin-left: 7.8rem;
+}
+
+[data-indentation-level='4'] {
+  margin-left: 10.4rem;
+}
+
 ol:not(.au-c-list-horizontal) {
   list-style: decimal;
   margin-left: 2.6rem;

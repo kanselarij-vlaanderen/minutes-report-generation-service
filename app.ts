@@ -339,12 +339,12 @@ app.get("/:id", async function (req, res) {
         table: [
           {
             name: 'id',
-            values: ['attendees', 'absentees', 'announcements']
+            values: ['attendees', 'absentees']
           }
         ],
-        h4: [
+        section: [
           {
-            name: 'id',
+            name: 'data-section',
             values: ['announcements']
           }
         ],

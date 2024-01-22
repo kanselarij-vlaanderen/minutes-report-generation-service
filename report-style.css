@@ -106,6 +106,10 @@ ol:not(.au-c-list-horizontal)[data-list-style='lower-alpha'] {
 
 ol:not(.au-c-list-horizontal)[data-list-style='upper-alpha'] {
   list-style-type: upper-alpha;
+  margin-left: 1rem;
+}
+ol:not(.au-c-list-horizontal)[data-list-style='upper-alpha'] ol {
+  margin-left: 1rem;
 }
 
 ol:not(.au-c-list-horizontal) > li > ol:not([data-list-style]) {

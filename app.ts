@@ -54,7 +54,7 @@ async function generatePdf(
   const htmlString = `${createStyleHeader()}${html}`;
   if (ENABLE_DEBUG_WRITE_GENERATED_HTML) {
     fs.writeFileSync(
-      '/debug/rendered_minutes.html', 
+      '/debug/rendered_minutes.html',
       htmlString
     );
   }
@@ -353,7 +353,8 @@ app.get("/:id", async function (req, res) {
             name: 'id',
             values: ['next-meeting']
           }
-        ]
+        ],
+        ol: ['data-list-style']
       }
     }
     const sanitizedPart = sanitizeHtml(minutesPart, sanitizeOptions);

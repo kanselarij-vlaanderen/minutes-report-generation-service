@@ -38,8 +38,9 @@ body {
 
 .signature-container {
   font-size: 12pt;
-  margin-top: 6rem;
-  margin-right: 6rem;
+  padding-top: 4rem;
+  padding-right: 6rem;
+  margin: 0;
   display: flex;
   justify-content: flex-end;
 }

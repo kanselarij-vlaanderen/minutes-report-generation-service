@@ -119,7 +119,7 @@ function renderLogo() {
 }
 
 function renderHeader(context: MinutesContext) {
-  const { plannedStart, numberRepresentation, kind, kindLabel } = context;
+  const { plannedStart, numberRepresentation, minutesName, kind, kindLabel } = context;
   let title = `<p class="header-text">
     NOTULEN VAN DE ${kindLabel.replace(/Ministerraad/i, 'vergadering').toUpperCase()} VAN ${formatDate(plannedStart)}
   </p>`;
@@ -138,7 +138,7 @@ function renderHeader(context: MinutesContext) {
     <div>
       ${renderLogo()}
       <div>
-        <p>${numberRepresentation}</p>
+        <p>${minutesName}</p>
         ${title}
       </div>
     </div>

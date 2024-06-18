@@ -91,7 +91,7 @@ th, td {
   margin-left: 10.4rem;
 }
 
-ol:not(.au-c-list-horizontal) {
+ol {
   list-style: decimal;
   margin-left: 2.6rem;
   padding-left: 0;
@@ -99,125 +99,12 @@ ol:not(.au-c-list-horizontal) {
   margin-bottom: 0.2rem;
 }
 
-ol:not(.au-c-list-horizontal)[data-list-style='decimal'] {
-  list-style-type: decimal;
+ol > li[data-list-marker]::marker {
+  content: attr(data-list-marker);
+  font-variant-numeric: tabular-nums;
 }
 
-ol:not(.au-c-list-horizontal)[data-list-style='upper-roman'] {
-  list-style-type: upper-roman;
-}
-
-ol:not(.au-c-list-horizontal)[data-list-style='lower-alpha'] {
-  list-style-type: lower-alpha;
-}
-
-ol:not(.au-c-list-horizontal)[data-list-style='upper-alpha'] {
-  list-style-type: upper-alpha;
-  margin-left: 1rem;
-  margin-top: 0;
-  margin-bottom: 0;
-}
-ol:not(.au-c-list-horizontal)[data-list-style='upper-alpha'] ol {
-  margin-left: 1rem;
-}
-
-ol:not(.au-c-list-horizontal) > li > ol:not([data-list-style]) {
-  list-style-type: inherit;
-}
-
-ol[data-list-style=decimal-extended] {
-  display: table;
-  list-style-type: none;
-  margin: 0;
-  counter-reset: item;
-}
-ol[data-list-style=decimal-extended] > li {
-  display: table-row;
-  counter-increment: item;
-}
-ol[data-list-style=decimal-extended] > li:before {
-  display: table-cell;
-  padding-right: 0.5ch;
-  text-align: end;
-  white-space: nowrap;
+ol > *[data-content-container] > li[data-list-marker]::marker {
+  content: attr(data-list-marker);
   font-variant-numeric: tabular-nums;
-  content: counters(item, ".") ". ";
-}
-ol[data-list-style=decimal-extended] > li > ol:not([data-list-style]) {
-  display: table;
-  list-style-type: none;
-  margin: 0;
-  counter-reset: item;
-}
-ol[data-list-style=decimal-extended] > li > ol:not([data-list-style]) > li {
-  display: table-row;
-  counter-increment: item;
-}
-ol[data-list-style=decimal-extended] > li > ol:not([data-list-style]) > li:before {
-  display: table-cell;
-  padding-right: 0.5ch;
-  text-align: end;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  content: counters(item, ".") ". ";
-}
-ol[data-list-style=decimal-extended] > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) {
-  display: table;
-  list-style-type: none;
-  margin: 0;
-  counter-reset: item;
-}
-ol[data-list-style=decimal-extended] > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li {
-  display: table-row;
-  counter-increment: item;
-}
-ol[data-list-style=decimal-extended] > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li:before {
-  display: table-cell;
-  padding-right: 0.5ch;
-  text-align: end;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  content: counters(item, ".") ". ";
-}
-ol[data-list-style=decimal-extended] > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) {
-  display: table;
-  list-style-type: none;
-  margin: 0;
-  counter-reset: item;
-}
-ol[data-list-style=decimal-extended] > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li {
-  display: table-row;
-  counter-increment: item;
-}
-ol[data-list-style=decimal-extended] > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li:before {
-  display: table-cell;
-  padding-right: 0.5ch;
-  text-align: end;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  content: counters(item, ".") ". ";
-}
-ol[data-list-style=decimal-extended] > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) {
-  display: table;
-  list-style-type: none;
-  margin: 0;
-  counter-reset: item;
-}
-ol[data-list-style=decimal-extended] > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li {
-  display: table-row;
-  counter-increment: item;
-}
-ol[data-list-style=decimal-extended] > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li:before {
-  display: table-cell;
-  padding-right: 0.5ch;
-  text-align: end;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  content: counters(item, ".") ". ";
-}
-ol[data-list-style=decimal-extended] > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) {
-  list-style-type: decimal;
-}
-ol[data-list-style=decimal-extended] > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) > li > ol:not([data-list-style]) ol:not([data-list-style]) {
-  list-style-type: inherit;
 }

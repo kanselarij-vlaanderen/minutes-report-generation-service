@@ -336,22 +336,10 @@ app.get("/:id", async function (req, res) {
     const sanitizeOptions = {
       ...sanitizeHtml.defaults,
       allowedAttributes: {
-        table: [
-          {
-            name: 'id',
-            values: ['attendees', 'absentees']
-          }
-        ],
         section: [
           {
             name: 'data-section',
-            values: ['announcements']
-          }
-        ],
-        span: [
-          {
-            name: 'id',
-            values: ['next-meeting']
+            values: ['announcements', 'attendees', 'absentees', 'next-meeting',]
           }
         ],
         '*': ['data-indentation-level'],

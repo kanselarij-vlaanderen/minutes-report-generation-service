@@ -336,29 +336,26 @@ app.get("/:id", async function (req, res) {
     const sanitizeOptions = {
       ...sanitizeHtml.defaults,
       allowedAttributes: {
-        table: [
-          {
-            name: 'id',
-            values: ['attendees', 'absentees']
-          }
-        ],
         section: [
           {
             name: 'data-section',
-            values: ['announcements']
+            values: ['announcements', 'attendees', 'absentees', 'next-meeting',]
           }
         ],
-        span: [
-          {
-            name: 'id',
-            values: ['next-meeting']
-          }
-        ],
-        ol: ['data-list-style']
+        '*': ['data-indentation-level'],
+        'ol': ['style', 'data-hierarchical', 'data-list-style'],
+        'li': ['data-list-marker'],
+      },
+      allowedStyles: {
+        'ol': {
+          'list-style-type': [/.*/]
+        }
       }
     }
     const sanitizedPart = sanitizeHtml(minutesPart, sanitizeOptions);
-    const fileMeta = await generatePdf(sanitizedPart, meeting, secretary);
+    // Fix for list markers not being rendered correctly (regarding spacing) in the pdf
+    const fixedPart = sanitizedPart.replace(/data-list-marker="([^"]*) "/g, 'data-list-marker="$1&nbsp;"');
+    const fileMeta = await generatePdf(fixedPart, meeting, secretary);
     if (fileMeta) {
       await replaceMinutesFile(req.params.id, fileMeta.uri);
       if (oldFile) {

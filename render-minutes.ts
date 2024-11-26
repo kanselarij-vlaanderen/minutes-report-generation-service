@@ -166,9 +166,9 @@ export function renderMinutes(
   minutesHtml = minutesHtml.replace('<section data-section="announcements"',
       `${sectionSeparator}
       <section data-section="announcements"`
-  ).replace('<p><span id="next-meeting">',
+  ).replace('<section data-section="next-meeting"',
     `${sectionSeparator}
-    <p><span id="next-meeting">`
+    <section data-section="next-meeting"`
   );
   if (secretary && secretary.person) {
     minutesHtml += `

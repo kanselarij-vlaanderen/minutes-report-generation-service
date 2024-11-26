@@ -62,13 +62,15 @@ th, td {
   vertical-align: top;
 }
 
-#attendees,
-#absentees {
-  table-layout: fixed;
+section[data-section='attendees'],
+section[data-section='absentees'] {
+  > table {
+    table-layout: fixed;
+  }
 }
 
-#absentees {
-  break-after: page;
+section[data-section='absentees'] {
+    break-after: page;
 }
 
 .separator {

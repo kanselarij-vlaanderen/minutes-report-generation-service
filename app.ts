@@ -112,11 +112,16 @@ async function generatePdf(
   }
 }
 
+// headers contain 'application/vnd.api+json', don't use all properties
 async function deleteFile(requestHeaders, file: File) {
   try {
     const response = await fetch(`http://file/files/${file.id}`, {
       method: "delete",
-      headers: requestHeaders,
+      headers: {
+        'mu-auth-allowed-groups': requestHeaders['mu-auth-allowed-groups'],
+        'mu-call-id': requestHeaders['mu-call-id'],
+        'mu-session-id': requestHeaders['mu-session-id'],
+      }
     });
     if (!response.ok) {
       throw new Error(`Something went wrong while removing the file: ${response.statusText}`);
@@ -307,7 +312,7 @@ async function retrieveSignFlowStatus(
   }
 }
 
-app.get("/:id", async function (req, res) {
+app.post("/:id/generate", async function (req, res) {
   try {
     const minutesPart = await retrieveMinutesPart(req.params.id);
     if (!minutesPart) {
